@@ -9,7 +9,7 @@ import pymysql
 import time
 import sys
 import logging
-from apscheduler.schedulers.background import BlockingScheduler
+from apscheduler.schedulers.blocking import BlockingScheduler
 
 db_opt = {
     'host': '127.0.0.1', 'user': 'root', 'passwd': 'test',
@@ -54,7 +54,7 @@ def set_multi(line):
 def screenshot():
     now = datetime.now()
     print "do screenshot: {0}".format(now)
-    filename = "{0}.png".format(now.strftime("%Y%m%d%H%M"))
+    filename = "./images/{0}.png".format(now.strftime("%Y%m%d%H%M"))
     try:
         # 1. 网页截图
         option = webdriver.ChromeOptions()
@@ -66,6 +66,17 @@ def screenshot():
         time.sleep(10)
         browser.save_screenshot(filename)
         browser.close()
+
+        if night_mode:
+            # 夜间模式直接入库-1
+            cursor = conn.cursor(pymysql.cursors.DictCursor)
+            cursor.execute(
+                'INSERT INTO rounds(bet_timestamp, state) VALUES(%s,-1)',
+                [now.strftime("%Y%m%d%H%M"), ]
+            )
+            cursor.close()
+            return
+
         # 2. 图像识别
         out = pytesseract.image_to_string(Image.open(filename), lang='chi_sim')
         bet_map = {}
@@ -134,6 +145,11 @@ def screenshot():
 try:
     conn = pymysql.connect(**db_opt)
     conn.autocommit(True)
+    night_mode = False
+    if len(sys.argv) == 2 and sys.argv[1] == 'n':
+        # 夜间模式：只截图，不计算；入库为-1
+        night_mode = True
+
 except Exception:
     print "init mysql error"
     print traceback.format_exc()
@@ -141,5 +157,5 @@ except Exception:
 
 logging.basicConfig()
 scheduler = BlockingScheduler()
-scheduler.add_job(screenshot, 'interval', minutes=1, max_instances=3)
+scheduler.add_job(screenshot, 'cron', second='40')
 scheduler.start()
