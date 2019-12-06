@@ -16,6 +16,16 @@ db_opt = {
     'db': 'bonus',
 }
 
+"""
+TODO:
+
+1. 夜间模式：只截图，不计算；入库为-1
+2. 图片重算：对state = -1的图片进行重算；对计算后仍无法满足条件的，进行截图重算
+3. 入库结果校验
+4. cron模式代替interval模式进行定时调度
+5. reload支持
+"""
+
 
 def set_multi(line):
     """ 解析行中的轮次和倍率 """
@@ -36,7 +46,7 @@ def set_multi(line):
             raise
     except Exception:
         print "invalid line: {0}".format(line)
-        return 0, 0
+        return -1, 0
 
     return roundid, bet
 
@@ -88,6 +98,15 @@ def screenshot():
         if roundid == -1:
             print "invalid file: {0}".format(filename)
             bet_map[roundid] = {}
+            state = -1
+
+        # 当bet_a和bet_b有且仅有一个>0，另一个为0时，记录有效
+        if not ((bet_map[roundid].get('single', 0) > 0 and bet_map[roundid].get('double', 0) == 0) or (bet_map[roundid].get('double', 0) > 0 and bet_map[roundid].get('single', 0) == 0)):
+            print "invalid single_double"
+            state = -1
+
+        if not ((bet_map[roundid].get('small', 0) > 0 and bet_map[roundid].get('big', 0) == 0) or (bet_map[roundid].get('big', 0) > 0 and bet_map[roundid].get('small', 0) == 0)):
+            print "invalid big_small"
             state = -1
 
         # 3. 入库
