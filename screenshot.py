@@ -1,5 +1,9 @@
 # coding: utf-8
 
+"""
+定时执行抓取任务，图像识别并入库（夜间模式只抓取，不识别）
+"""
+
 from selenium import webdriver
 from datetime import datetime
 from PIL import Image
@@ -19,11 +23,8 @@ db_opt = {
 """
 TODO:
 
-1. 夜间模式：只截图，不计算；入库为-1
 2. 图片重算：对state = -1的图片进行重算；对计算后仍无法满足条件的，进行截图重算
 3. 入库结果校验
-4. cron模式代替interval模式进行定时调度
-5. reload支持
 """
 
 

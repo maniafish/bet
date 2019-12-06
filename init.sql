@@ -8,5 +8,6 @@ CREATE TABLE `rounds` (
   `state` int(11) NOT NULL DEFAULT '0' COMMENT '本条记录状态: 0, 正常; -1, 记录异常; 1, 修复后的记录',
   `updatetime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`bet_timestamp`),
-  KEY `roundid` (`roundid`)
+  KEY `roundid` (`roundid`),
+  KEY `state` (`state`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='轮次信息表';
