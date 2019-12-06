@@ -6,14 +6,13 @@
 
 from selenium import webdriver
 from datetime import datetime
-from PIL import Image
-import pytesseract
 import traceback
 import pymysql
 import time
 import sys
 import logging
 from apscheduler.schedulers.blocking import BlockingScheduler
+from utils import parse_image
 
 db_opt = {
     'host': '127.0.0.1', 'user': 'root', 'passwd': 'test',
@@ -26,30 +25,6 @@ TODO:
 2. 图片重算：对state = -1的图片进行重算；对计算后仍无法满足条件的，进行截图重算
 3. 入库结果校验
 """
-
-
-def set_multi(line):
-    """ 解析行中的轮次和倍率 """
-    print line
-    s = line.split()
-    try:
-        roundid = int(s[0])
-        bet = 0
-        # 反向遍历第一个数字为倍率
-        for i in range(len(s)-1, 0, -1):
-            try:
-                bet = int(s[i])
-                break
-            except:
-                continue
-
-        if not bet:
-            raise
-    except Exception:
-        print traceback.format_exc()
-        return -1, 0
-
-    return roundid, bet
 
 
 def screenshot():
@@ -79,49 +54,25 @@ def screenshot():
             return
 
         # 2. 图像识别
-        out = pytesseract.image_to_string(Image.open(filename), lang='chi_sim')
-        bet_map = {}
-        roundid = -1
+        roundid, bet_map = parse_image(filename)
+
         state = 0
-        bet_type = ''
-        bet = 0
-        # 永远以最近的一条为准
-        for line in out.split('\n'):
-            if line.find(u'期') > 0:
-                if line.find(u'双') > 0:
-                    roundid, bet = set_multi(line)
-                    bet_type = 'double'
-                elif line.find(u'单') > 0:
-                    roundid, bet = set_multi(line)
-                    bet_type = 'single'
-                elif line.find(u'大') > 0:
-                    roundid, bet = set_multi(line)
-                    bet_type = 'big'
-                elif line.find(u'小') > 0 or line.find('JJ') > 0:
-                    roundid, bet = set_multi(line)
-                    bet_type = 'small'
-
-                # 没有就创建
-                if not bet_map.get(roundid):
-                    bet_map[roundid] = {bet_type: bet}
-                else:
-                    bet_map[roundid][bet_type] = bet
-
+        # 3. 错误处理
         if roundid == -1:
             print "invalid file: {0}".format(filename)
             bet_map[roundid] = {}
             state = -1
 
         # 当bet_a和bet_b有且仅有一个>0，另一个为0时，记录有效
-        if not ((bet_map[roundid].get('single', 0) > 0 and bet_map[roundid].get('double', 0) == 0) or (bet_map[roundid].get('double', 0) > 0 and bet_map[roundid].get('single', 0) == 0)):
+        if not ((bet_map[roundid].get('bet_single', 0) > 0 and bet_map[roundid].get('bet_double', 0) == 0) or (bet_map[roundid].get('bet_double', 0) > 0 and bet_map[roundid].get('bet_single', 0) == 0)):
             print "invalid single_double"
             state = -1
 
-        if not ((bet_map[roundid].get('small', 0) > 0 and bet_map[roundid].get('big', 0) == 0) or (bet_map[roundid].get('big', 0) > 0 and bet_map[roundid].get('small', 0) == 0)):
+        if not ((bet_map[roundid].get('bet_small', 0) > 0 and bet_map[roundid].get('bet_big', 0) == 0) or (bet_map[roundid].get('bet_big', 0) > 0 and bet_map[roundid].get('bet_small', 0) == 0)):
             print "invalid big_small"
             state = -1
 
-        # 3. 入库
+        # 4. 入库
         cursor = conn.cursor(pymysql.cursors.DictCursor)
         cursor.execute(
             ('INSERT INTO rounds(bet_timestamp, bet_single, bet_double, '
@@ -129,10 +80,10 @@ def screenshot():
              'VALUES(%s,%s,%s,%s,%s,%s,%s)'
              ),
             [now.strftime("%Y%m%d%H%M"),
-             str(bet_map[roundid].get('single', 0)),
-             str(bet_map[roundid].get('double', 0)),
-             str(bet_map[roundid].get('big', 0)),
-             str(bet_map[roundid].get('small', 0)),
+             str(bet_map[roundid].get('bet_single', 0)),
+             str(bet_map[roundid].get('bet_double', 0)),
+             str(bet_map[roundid].get('bet_big', 0)),
+             str(bet_map[roundid].get('bet_small', 0)),
              str(roundid),
              str(state)]
         )
