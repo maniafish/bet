@@ -158,5 +158,5 @@ except Exception:
 
 logging.basicConfig()
 scheduler = BlockingScheduler()
-scheduler.add_job(screenshot, 'cron', second='40')
+scheduler.add_job(screenshot, 'cron', second='40', max_instances=3)
 scheduler.start()

@@ -8,12 +8,15 @@ from PIL import Image
 import pytesseract
 import pymysql
 import traceback
+from datetime import datetime, timedelta
 
 
 db_opt = {
     'host': '127.0.0.1', 'user': 'root', 'passwd': 'test',
     'db': 'bonus',
 }
+
+bet_list = [1, 3, 9]
 
 
 def set_multi(line):
@@ -40,15 +43,102 @@ def set_multi(line):
     return roundid, bet
 
 
+def get_bet_duration(bet_timestamp):
+    """ 读取前1分钟到后10分钟的数据 """
+    t = datetime.strptime(str(bet_timestamp), "%Y%m%d%H%M")
+    begin_t = t - timedelta(minutes=1)
+    end_t = t + timedelta(minutes=10)
+    cursor = conn.cursor(pymysql.cursors.DictCursor)
+    cursor.execute(
+        ('SELECT bet_timestamp, bet_single, bet_double, bet_small, bet_big '
+         'FROM rounds WHERE bet_timestamp BETWEEN %s AND %s ORDER BY bet_timestamp'),
+        [begin_t.strftime("%Y%m%d%H%M"),
+         end_t.strftime("%Y%m%d%H%M")],
+    )
+
+    r = cursor.fetchall()
+    cursor.close()
+    return r
+
+
+def do_traverse(r, j, bet_a, bet_b, expect):
+    while j < len(r):
+        # 预测值递增
+        if expect in bet_list:
+            # 前几轮倍率 * 3
+            expect = expect * 3
+        else:
+            # 几轮后倍率 * 2
+            expect = expect * 2
+
+        # 遍历到第一个有效数据
+        if (r[j][bet_a] > 0 and r[j][bet_b] == 0) or (r[j][bet_b] > 0 and r[j][bet_a] == 0):
+            post_bet = r[j][bet_a] if r[j][bet_a] > 0 else r[j][bet_b]
+            if post_bet == expect:
+                return True
+
+            return False
+
+        j += 1
+
+    return False
+
+
+def traverse_bet(bet_timestamp, bet_a, bet_b):
+    """ 拿前一轮的向后遍历，预测本轮的bet """
+    """ 预测失败返回bet_b, 0, False；成功返回bet_type, <预测值>, True """
+    try:
+        # 读取前1分钟到后10分钟的数据
+        r = get_bet_duration(bet_timestamp)
+        # 至少要有前一轮和后一轮的数据
+        if len(r) < 3 or r[0]['bet_timestamp'] >= bet_timestamp or r[1]['bet_timestamp'] != bet_timestamp or r[2]['bet_timestamp'] <= bet_timestamp:
+            print "{0} invalid rounds: {1}".format(bet_timestamp, r)
+            return bet_b, 0, False
+
+        # 默认bet_type为bet_b
+        bet_type = bet_b
+        pre_bet = 0
+        # 上轮有效的，bet_type取上轮的值
+        if r[0][bet_a] > 0 and r[0][bet_b] == 0:
+            bet_type = bet_a
+            pre_bet = r[0][bet_a]
+        elif r[0][bet_b] > 0 and r[0][bet_a] == 0:
+            bet_type = bet_b
+            pre_bet = r[0][bet_b]
+
+        # 本轮从1开始，看是否能够命中
+        expect = 1
+        if do_traverse(r, 2, bet_a, bet_b, expect):
+            return bet_type, expect, True
+
+        if pre_bet > 0:
+            # 本轮expect较上轮递增
+            if pre_bet in bet_list:
+                # 前几轮倍率 * 3
+                expect = pre_bet * 3
+            else:
+                # 几轮后倍率 * 2
+                expect = pre_bet * 2
+
+            if do_traverse(r, 2, bet_a, bet_b, expect):
+                return bet_type, expect, True
+
+        return bet_b, 0, False
+
+    except Exception:
+        print traceback.format_exc()
+        return bet_b, 0, False
+
+
 try:
     conn = pymysql.connect(**db_opt)
     conn.autocommit(True)
     cursor = conn.cursor(pymysql.cursors.DictCursor)
-    cursor.execute('SELECT bet_timestamp FROM rounds WHERE state = -1')
-    ret = cursor.fetchall()
+    cursor.execute('SELECT bet_timestamp FROM rounds WHERE state = -1 ORDER BY bet_timestamp')
+    r = cursor.fetchall()
     cursor.close()
-    for r in ret:
-        filename = './images/{0}.png'.format(r['bet_timestamp'])
+    for i in range(0, len(r)):
+        filename = './images/{0}.png'.format(r[i]['bet_timestamp'])
         print "parse file: {0}".format(filename)
         img = Image.open(filename)
         wide, height = img.size
@@ -57,10 +147,10 @@ try:
         # 图像截取
         img_x = 56 * w_factor
         img_y = 180 * h_factor
-        img_w = 200 * w_factor
+        img_w = 180 * w_factor
         img_h = 120 * h_factor
         region = img.crop((img_x, img_y, img_x+img_w, img_y+img_h))
-        img_name = './images/{0}_tmp.png'.format(r['bet_timestamp'])
+        img_name = './images/{0}_tmp.png'.format(r[i]['bet_timestamp'])
         region.save(img_name)
         out = pytesseract.image_to_string(Image.open(img_name), lang='chi_sim')
         bet_map = {}
@@ -94,24 +184,41 @@ try:
             print "invalid file: {0}".format(img_name)
             continue
 
+        state = 1
+        print "debug bet_map:", bet_map
         # 当bet_a和bet_b有且仅有一个>0，另一个为0时，记录有效
         # 单双没解出来的，递归预测出一个结果来
         if not ((bet_map[roundid].get('single', 0) > 0 and bet_map[roundid].get('double', 0) == 0) or (bet_map[roundid].get('double', 0) > 0 and bet_map[roundid].get('single', 0) == 0)):
+            bet_type, bet, ok = traverse_bet(r[i]['bet_timestamp'], 'bet_single', 'bet_double')
+            if ok:
+                bet_map[roundid][bet_type] = bet
+            else:
+                state = -1
 
         # 大小没解出来的，递归预测出一个结果来
         if not ((bet_map[roundid].get('small', 0) > 0 and bet_map[roundid].get('big', 0) == 0) or (bet_map[roundid].get('big', 0) > 0 and bet_map[roundid].get('small', 0) == 0)):
+            bet_type, bet, ok = traverse_bet(r[i]['bet_timestamp'], 'bet_small', 'bet_big')
+            if ok:
+                bet_map[roundid][bet_type] = bet
+            else:
+                state = -1
 
+        if state == 1:
+            print "debug bet_map after set:", bet_map
+        else:
+            print "debug state: ", state
         cursor = conn.cursor(pymysql.cursors.DictCursor)
         cursor.execute(
             ('UPDATE rounds SET bet_single = %s, bet_double = %s, '
-             'bet_big = %s, bet_small = %s, roundid = %s, state = 1 '
+             'bet_big = %s, bet_small = %s, roundid = %s, state = %s '
              'WHERE bet_timestamp = %s'),
             [str(bet_map[roundid].get('single', 0)),
              str(bet_map[roundid].get('double', 0)),
              str(bet_map[roundid].get('big', 0)),
              str(bet_map[roundid].get('small', 0)),
              str(roundid),
-             str(r['bet_timestamp'])]
+             str(state),
+             str(r[i]['bet_timestamp'])]
         )
         cursor.close()
 
