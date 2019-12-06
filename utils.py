@@ -10,6 +10,12 @@ def set_multi(line):
     s = line.split()
     try:
         roundid = int(s[0])
+    except Exception:
+        print traceback.format_exc()
+        # 没解出来的，roundid = 0
+        roundid = 0
+
+    try:
         bet = 0
         # 反向遍历第一个数字为倍率
         for i in range(len(s)-1, 0, -1):
@@ -61,7 +67,7 @@ def parse_image(filename):
                 elif line.find(u'大') > 0:
                     tmp_roundid, bet = set_multi(line)
                     bet_type = 'bet_big'
-                elif line.find(u'小') > 0 or line.find('JJ') > 0:
+                elif line.find(u'小') > 0 or line.find('JJ') > 0 or line.find('J') > 0:
                     tmp_roundid, bet = set_multi(line)
                     bet_type = 'bet_small'
 
