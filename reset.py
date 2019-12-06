@@ -34,7 +34,7 @@ def set_multi(line):
         if not bet:
             raise
     except Exception:
-        print "invalid line: {0}".format(line)
+        print traceback.format_exc()
         return -1, 0
 
     return roundid, bet
@@ -44,19 +44,22 @@ try:
     conn = pymysql.connect(**db_opt)
     conn.autocommit(True)
     cursor = conn.cursor(pymysql.cursors.DictCursor)
-    cursor.execute('SELECT bet_timestamp FROM rounds WHERE state = -1 and bet_timestamp < 201912052124')
+    cursor.execute('SELECT bet_timestamp FROM rounds WHERE state = -1')
     ret = cursor.fetchall()
     cursor.close()
     for r in ret:
         filename = './images/{0}.png'.format(r['bet_timestamp'])
         print "parse file: {0}".format(filename)
         img = Image.open(filename)
+        wide, height = img.size
+        w_factor = wide / 800.0
+        h_factor = height / 600.0
         # 图像截取
-        img_x = 56
-        img_y = 180
-        img_w = 200
-        img_h = 120
-        region = img.crop(img_x, img_y, img_x+img_w, img_y+img_h)
+        img_x = 56 * w_factor
+        img_y = 180 * h_factor
+        img_w = 200 * w_factor
+        img_h = 120 * h_factor
+        region = img.crop((img_x, img_y, img_x+img_w, img_y+img_h))
         img_name = './images/{0}_tmp.png'.format(r['bet_timestamp'])
         region.save(img_name)
         out = pytesseract.image_to_string(Image.open(img_name), lang='chi_sim')
@@ -87,17 +90,16 @@ try:
                     bet_map[roundid][bet_type] = bet
 
         if roundid == -1:
+            # 完全没解出来的，就不用挣扎了
             print "invalid file: {0}".format(img_name)
             continue
 
         # 当bet_a和bet_b有且仅有一个>0，另一个为0时，记录有效
+        # 单双没解出来的，递归预测出一个结果来
         if not ((bet_map[roundid].get('single', 0) > 0 and bet_map[roundid].get('double', 0) == 0) or (bet_map[roundid].get('double', 0) > 0 and bet_map[roundid].get('single', 0) == 0)):
-            print "invalid file: {0}".format(img_name)
-            continue
 
+        # 大小没解出来的，递归预测出一个结果来
         if not ((bet_map[roundid].get('small', 0) > 0 and bet_map[roundid].get('big', 0) == 0) or (bet_map[roundid].get('big', 0) > 0 and bet_map[roundid].get('small', 0) == 0)):
-            print "invalid file: {0}".format(img_name)
-            continue
 
         cursor = conn.cursor(pymysql.cursors.DictCursor)
         cursor.execute(

@@ -46,7 +46,7 @@ def set_multi(line):
         if not bet:
             raise
     except Exception:
-        print "invalid line: {0}".format(line)
+        print traceback.format_exc()
         return -1, 0
 
     return roundid, bet
