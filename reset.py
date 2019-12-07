@@ -14,8 +14,8 @@ db_opt = {
     'db': 'bonus',
 }
 
-begin_date = 201912060000
-end_date = 201912070000
+begin_date = 201912070000
+end_date = 201912080000
 bet_list = [1, 3, 9]
 
 
@@ -134,7 +134,8 @@ try:
     conn.autocommit(True)
     cursor = conn.cursor(pymysql.cursors.DictCursor)
     cursor.execute(
-        ('SELECT bet_timestamp FROM rounds WHERE state = -1 '
+        ('SELECT bet_timestamp, bet_small, bet_big, bet_single, bet_double '
+         'FROM rounds WHERE state != 0'
          'AND bet_timestamp BETWEEN %s AND %s ORDER BY bet_timestamp'),
         [str(begin_date), str(end_date)]
     )
@@ -150,7 +151,7 @@ try:
             print "invalid file: {0}".format(filename)
             continue
 
-        state = 1
+        state = 0
         print "debug bet_map:", bet_map
         # 当bet_a和bet_b有且仅有一个>0，另一个为0时，记录有效
         # 单双没解出来的，递归预测出一个结果来
@@ -158,6 +159,7 @@ try:
             bet_type, bet, ok = traverse_bet(r[i]['bet_timestamp'], 'bet_single', 'bet_double')
             if ok:
                 bet_map[roundid][bet_type] = bet
+                state = 1
             else:
                 state = -1
 
@@ -166,13 +168,11 @@ try:
             bet_type, bet, ok = traverse_bet(r[i]['bet_timestamp'], 'bet_small', 'bet_big')
             if ok:
                 bet_map[roundid][bet_type] = bet
+                state = 1
             else:
                 state = -1
 
-        if state == 1:
-            print "debug", roundid, "bet_map after set:", bet_map
-        else:
-            print "debug state: ", state
+        print "debug", roundid, "bet_map after set:", bet_map
         cursor = conn.cursor(pymysql.cursors.DictCursor)
         cursor.execute(
             ('UPDATE rounds SET bet_single = %s, bet_double = %s, '

@@ -22,7 +22,7 @@ def set_multi(line):
             try:
                 bet = int(s[i])
                 break
-            except:
+            except Exception:
                 continue
 
         if not bet:

@@ -11,6 +11,7 @@ import pymysql
 import time
 import sys
 import logging
+import requests
 from apscheduler.schedulers.blocking import BlockingScheduler
 from utils import parse_image
 
@@ -22,8 +23,20 @@ db_opt = {
 """
 TODO:
 
-2. 图片重算：对state = -1的图片进行重算；对计算后仍无法满足条件的，进行截图重算
-3. 入库结果校验
+1.
+552 期 【 108侣
+552 期 [X] 借
+
+返回 -1
+
+2.
+552 期 【 108侣
+552 期 [X] 1 借
+
+返回-1
+
+3.
+reset时结合select出来的结果处理
 """
 
 
@@ -39,7 +52,7 @@ def screenshot():
         browser = webdriver.Chrome('./chromedriver', chrome_options=option)
         browser.get('https://69960a.com/chat/index.html?web#/room/879')
         # 等10s页面完全刷新
-        time.sleep(10)
+        time.sleep(5)
         browser.save_screenshot(filename)
         browser.close()
 
@@ -62,6 +75,10 @@ def screenshot():
             print "invalid file: {0}".format(filename)
             bet_map[roundid] = {}
             state = -1
+
+        # 出现9倍发送消息
+        if bet_map[roundid].get('bet_single', 0) == 9 or bet_map[roundid].get('bet_double', 0) == 9 or bet_map[roundid].get('bet_small', 0) == 9 or bet_map[roundid].get('bet_big', 0) == 9:
+            requests.get('http://xb.matrix.netease.com:4179/push_msg?users=["cgn4196@corp.netease.com"]&msg=999')
 
         # 当bet_a和bet_b有且仅有一个>0，另一个为0时，记录有效
         if not ((bet_map[roundid].get('bet_single', 0) > 0 and bet_map[roundid].get('bet_double', 0) == 0) or (bet_map[roundid].get('bet_double', 0) > 0 and bet_map[roundid].get('bet_single', 0) == 0)):
@@ -109,5 +126,5 @@ except Exception:
 
 logging.basicConfig()
 scheduler = BlockingScheduler()
-scheduler.add_job(screenshot, 'cron', second='40', max_instances=3)
+scheduler.add_job(screenshot, 'cron', second='30', max_instances=3)
 scheduler.start()
