@@ -63,7 +63,8 @@ def screenshot():
 
         # 出现单双的9倍和108倍发送消息，下一次跳变可进行一次4轮定投
         if bet_map[roundid].get('bet_single', 0) in (9, 108) or bet_map[roundid].get('bet_double', 0) in (9, 108):
-            requests.get('http://xb.matrix.netease.com:4179/push_msg?users=["cgn4196@corp.netease.com"]&msg=999')
+            # send_msg
+            pass
 
         # 当bet_a和bet_b有且仅有一个>0，另一个为0时，记录有效
         if not ((bet_map[roundid].get('bet_single', 0) > 0 and bet_map[roundid].get('bet_double', 0) == 0) or (bet_map[roundid].get('bet_double', 0) > 0 and bet_map[roundid].get('bet_single', 0) == 0)):
