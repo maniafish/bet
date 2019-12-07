@@ -14,6 +14,7 @@ import logging
 import requests
 from apscheduler.schedulers.blocking import BlockingScheduler
 from utils import parse_image
+from conf import req
 
 db_opt = {
     'host': '127.0.0.1', 'user': 'root', 'passwd': 'test',
@@ -63,8 +64,7 @@ def screenshot():
 
         # 出现单双的9倍和108倍发送消息，下一次跳变可进行一次4轮定投
         if bet_map[roundid].get('bet_single', 0) in (9, 108) or bet_map[roundid].get('bet_double', 0) in (9, 108):
-            # send_msg
-            pass
+            requests.get(req)
 
         # 当bet_a和bet_b有且仅有一个>0，另一个为0时，记录有效
         if not ((bet_map[roundid].get('bet_single', 0) > 0 and bet_map[roundid].get('bet_double', 0) == 0) or (bet_map[roundid].get('bet_double', 0) > 0 and bet_map[roundid].get('bet_single', 0) == 0)):
