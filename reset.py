@@ -14,7 +14,7 @@ db_opt = {
     'db': 'bonus',
 }
 
-begin_date = 201912070000
+begin_date = 201912050000
 end_date = 201912080000
 bet_list = [1, 3, 9]
 
@@ -135,7 +135,7 @@ try:
     cursor = conn.cursor(pymysql.cursors.DictCursor)
     cursor.execute(
         ('SELECT bet_timestamp, bet_small, bet_big, bet_single, bet_double '
-         'FROM rounds WHERE state != 0'
+         'FROM rounds WHERE state != 0 '
          'AND bet_timestamp BETWEEN %s AND %s ORDER BY bet_timestamp'),
         [str(begin_date), str(end_date)]
     )
