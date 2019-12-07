@@ -22,21 +22,6 @@ db_opt = {
 
 """
 TODO:
-
-1.
-552 期 【 108侣
-552 期 [X] 借
-
-返回 -1
-
-2.
-552 期 【 108侣
-552 期 [X] 1 借
-
-返回-1
-
-3.
-reset时结合select出来的结果处理
 """
 
 
@@ -76,8 +61,8 @@ def screenshot():
             bet_map[roundid] = {}
             state = -1
 
-        # 出现9倍发送消息
-        if bet_map[roundid].get('bet_single', 0) == 9 or bet_map[roundid].get('bet_double', 0) == 9 or bet_map[roundid].get('bet_small', 0) == 9 or bet_map[roundid].get('bet_big', 0) == 9:
+        # 出现单双的9倍和108倍发送消息，下一次跳变可进行一次4轮定投
+        if bet_map[roundid].get('bet_single', 0) in (9, 108) or bet_map[roundid].get('bet_double', 0) in (9, 108):
             requests.get('http://xb.matrix.netease.com:4179/push_msg?users=["cgn4196@corp.netease.com"]&msg=999')
 
         # 当bet_a和bet_b有且仅有一个>0，另一个为0时，记录有效

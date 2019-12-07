@@ -135,7 +135,7 @@ try:
     cursor = conn.cursor(pymysql.cursors.DictCursor)
     cursor.execute(
         ('SELECT bet_timestamp, bet_small, bet_big, bet_single, bet_double '
-         'FROM rounds WHERE state != 0 '
+         'FROM rounds WHERE state = -1 '
          'AND bet_timestamp BETWEEN %s AND %s ORDER BY bet_timestamp'),
         [str(begin_date), str(end_date)]
     )
@@ -156,21 +156,31 @@ try:
         # 当bet_a和bet_b有且仅有一个>0，另一个为0时，记录有效
         # 单双没解出来的，递归预测出一个结果来
         if not ((bet_map[roundid].get('bet_single', 0) > 0 and bet_map[roundid].get('bet_double', 0) == 0) or (bet_map[roundid].get('bet_double', 0) > 0 and bet_map[roundid].get('bet_single', 0) == 0)):
-            bet_type, bet, ok = traverse_bet(r[i]['bet_timestamp'], 'bet_single', 'bet_double')
-            if ok:
-                bet_map[roundid][bet_type] = bet
-                state = 1
+            if (r[i]['bet_single'] > 0 and r[i]['bet_double'] == 0) or (r[i]['bet_double'] > 0 and r[i]['bet_single'] == 0):
+                # 数据库中查出了有效值，但是解析时没有有效值，则使用数据库的值
+                bet_map[roundid]['bet_single'] = r[i]['bet_single']
+                bet_map[roundid]['bet_double'] = r[i]['bet_double']
             else:
-                state = -1
+                bet_type, bet, ok = traverse_bet(r[i]['bet_timestamp'], 'bet_single', 'bet_double')
+                if ok:
+                    bet_map[roundid][bet_type] = bet
+                    state = 1
+                else:
+                    state = -1
 
         # 大小没解出来的，递归预测出一个结果来
         if not ((bet_map[roundid].get('bet_small', 0) > 0 and bet_map[roundid].get('bet_big', 0) == 0) or (bet_map[roundid].get('bet_big', 0) > 0 and bet_map[roundid].get('bet_small', 0) == 0)):
-            bet_type, bet, ok = traverse_bet(r[i]['bet_timestamp'], 'bet_small', 'bet_big')
-            if ok:
-                bet_map[roundid][bet_type] = bet
-                state = 1
+            if (r[i]['bet_small'] > 0 and r[i]['bet_big'] == 0) or (r[i]['bet_big'] > 0 and r[i]['bet_small'] == 0):
+                # 数据库中查出了有效值，但是解析时没有有效值，则使用数据库的值
+                bet_map[roundid]['bet_small'] = r[i]['bet_small']
+                bet_map[roundid]['bet_big'] = r[i]['bet_big']
             else:
-                state = -1
+                bet_type, bet, ok = traverse_bet(r[i]['bet_timestamp'], 'bet_small', 'bet_big')
+                if ok:
+                    bet_map[roundid][bet_type] = bet
+                    state = 1
+                else:
+                    state = -1
 
         print "debug", roundid, "bet_map after set:", bet_map
         cursor = conn.cursor(pymysql.cursors.DictCursor)
