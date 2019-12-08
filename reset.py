@@ -15,7 +15,7 @@ db_opt = {
 }
 
 begin_date = 201912050000
-end_date = 201912080000
+end_date = 201912090000
 bet_list = [1, 3, 9]
 
 

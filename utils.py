@@ -69,6 +69,9 @@ def parse_image(filename):
                     # 解不出类型的就是【小】
                     bet_type = 'bet_small'
 
+                # 修复无效bet
+                if bet == 89:
+                    bet = 9
                 # 创建roundid
                 bet_map[roundid] = {bet_type: bet}
                 break
@@ -89,6 +92,9 @@ def parse_image(filename):
                     # 解不出类型的就是【双】
                     bet_type = 'bet_double'
 
+                # 修复无效bet
+                if bet == 89:
+                    bet = 9
                 if roundid == -1:
                     # 没有就创建
                     bet_map[tmp_roundid] = {bet_type: bet}

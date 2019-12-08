@@ -1,130 +1,133 @@
 # coding: utf-8
 
+"""
+模拟下注
+"""
+
 import pymysql
 import traceback
 import sys
-from datetime import datetime
+import matplotlib
+matplotlib.use('TkAgg')
 
-begin_date = 201912050000
-end_date = 201912060000
-bet_list = [1, 3, 9]
+import matplotlib.pyplot as plt
+
 
 db_opt = {
     'host': '127.0.0.1', 'user': 'root', 'passwd': 'test',
     'db': 'bonus',
 }
 
+begin_date = 201912050000
+end_date = 201912090000
 
-def filename(ts):
-    t = datetime.fromtimestamp(ts)
-    return "{0}.png".format(t.strftime("%Y%m%d%H%M%S"))
+lazer_types = [
+    'b-', 'r-', 'g-', 'c-', 'm-', 'y-', 'k-',
+]
 
+# 下注矩阵
+bet_list = [1, 3]
+# 最大下注轮数
+max_bet = len(bet_list)
 
-def do_traverse(r, j, bet_a, bet_b, expect):
-    while j < len(r):
-        # 遍历到第一个有效数据
-        if (r[j][bet_a] > 0 and r[j][bet_b] == 0) or (r[j][bet_b] > 0 and r[j][bet_a] == 0):
-            post_bet = r[j][bet_a] if r[j][bet_a] > 0 else r[j][bet_b]
-            if post_bet == expect:
-                return True
-
-            return False
-
-        # 预测值递增
-        if expect in bet_list:
-            # 前几轮倍率 * 3
-            expect = expect * 3
-        else:
-            # 几轮后倍率 * 2
-            expect = expect * 2
-
-        j += 1
-
-    return False
+factor_bet = [max_bet-1, max_bet-1]
+bet_counting = [0, 0]
+principal = 40
 
 
-def traverse_bet(r, i, bet_a, bet_b):
-    """ 拿前一轮的向后遍历，预测本轮的bet """
-    """ 预测失败返回1, False；成功返回<预测值>, True """
-    pre_bet = r[i][bet_a] if r[i][bet_a] > 0 else r[i][bet_b]
-    if pre_bet == 0:
-        return 1, False
+def do_bet(actual_bet, bet_type):
+    global factor_bet
+    global bet_counting
+    global principal
 
-    # 本轮expect较上轮递增
-    if pre_bet in bet_list:
-        # 前几轮倍率 * 3
-        expect = pre_bet * 3
-    else:
-        # 几轮后倍率 * 2
-        expect = pre_bet * 2
+    # 下注过程中回归bet，说明下注成功
+    if bet_counting[bet_type] == 1 and actual_bet == bet_list[0]:
+        principal += 1.96 * bet_list[factor_bet[bet_type]]
+        # 回归下注因子
+        factor_bet[bet_type] = 0
+        print "do {0} bet".format(bet_type), bet_list[factor_bet[bet_type]]
+        principal -= bet_list[factor_bet[bet_type]]
+        bet_counting[bet_type] = 1
+        return
 
-    # 校验expect
-    if do_traverse(r, i+1, bet_a, bet_b, expect):
-        return expect, True
+    # 持续下注
+    factor_bet[bet_type] = (factor_bet[bet_type] + 1) % max_bet
+    print "do {0} bet".format(bet_type), bet_list[factor_bet[bet_type]]
+    principal -= bet_list[factor_bet[bet_type]]
+    bet_counting[bet_type] = 1
 
-    # 本轮expect从头开始
-    expect = 1
-    if do_traverse(r, i+1, bet_a, bet_b, expect):
-        return expect, True
-
-    return 1, False
-
-
-def check_rounds(r):
-    """ 检查轮次 """
-    for i in range(0, len(r)):
-        if i - 1 >= 0 and r[i]['roundid'] != r[i-1]['roundid'] + 1 and r[i]['roundid'] != 0:
-            print "{0}.png".format(r[i]['bet_timestamp'])
-
-
-def check(r, bet_a, bet_b, cursor):
-    """ 检查单双/大小 """
-    for i in range(0, len(r)):
-        # 当bet_a和bet_b有且仅有一个>0，另一个为0时，记录有效
-        if not ((r[i][bet_a] > 0 and r[i][bet_b] == 0) or (r[i][bet_b] > 0 and r[i][bet_a] == 0)):
-            # 上一轮有效
-            if i - 1 >= 0:
-                # 从上一轮开始遍历，预测本轮数据
-                r[i][bet_b], ok = traverse_bet(r, i-1, bet_a, bet_b)
-                if ok:
-                    print "{0}.png".format(r[i]['bet_timestamp']), r[i][bet_b], "fixed"
-                    # 修正记录
-                    cursor.execute(
-                        'UPDATE rounds SET {0}=%s, state=1 WHERE bet_timestamp=%s'.format(bet_b),
-                        [r[i][bet_b], r[i]['bet_timestamp']]
-                    )
-                    continue
-
-            print "{0}.png".format(r[i]['bet_timestamp']), 0
-
-
-if len(sys.argv) < 2:
-    print "1: check rounds"
-    print "2: check big_small"
-    print "3: check single_double"
-    sys.exit(1)
 
 try:
-    check_flag = int(sys.argv[1])
     conn = pymysql.connect(**db_opt)
     conn.autocommit(True)
     cursor = conn.cursor(pymysql.cursors.DictCursor)
     cursor.execute(
-        ('SELECT bet_timestamp, bet_single, bet_double, '
-         'bet_big, bet_small, roundid, state FROM rounds '
-         'WHERE bet_timestamp BETWEEN %s AND %s '
-         'ORDER BY bet_timestamp'),
+        ('SELECT bet_timestamp, bet_small, bet_big, bet_single, bet_double FROM rounds '
+         'WHERE bet_timestamp BETWEEN %s AND %s ORDER BY bet_timestamp'),
         [str(begin_date), str(end_date)]
     )
-
     r = cursor.fetchall()
-    # 任何一种检查，都要人为保证首条记录正确
-    if check_flag == 1:
-        check_rounds(r)
-    elif check_flag == 2:
-        check(r, 'bet_big', 'bet_small', cursor)
-    elif check_flag == 3:
-        check(r, 'bet_single', 'bet_double', cursor)
+    cursor.close()
+
+    # key: 日期, value: 轮次列表
+    rounds = {}
+    # key: 日期, value: 大小bet值
+    beta_list = {}
+    # key: 日期, value: 单双bet值
+    betb_list = {}
+    principal_list = [principal]
+    for i in range(0, len(r)):
+        bet_a = r[i]["bet_big"] if r[i]["bet_big"] else r[i]["bet_small"]
+        bet_b = r[i]["bet_single"] if r[i]["bet_single"] else r[i]["bet_double"]
+        print "bet_timestamp: {0} - big_small: {1} - single_double: {2}".format(
+            r[i]['bet_timestamp'], bet_a, bet_b)
+
+        date = r[i]['bet_timestamp'] / 10000
+        rnd = r[i]['bet_timestamp'] % 10000
+        if not rounds.get(date, None):
+            rounds[date] = [rnd]
+            beta_list[date] = [bet_a]
+            betb_list[date] = [bet_b]
+        else:
+            rounds[date].append(rnd)
+            beta_list[date].append(bet_a)
+            betb_list[date].append(bet_b)
+
+        if (rnd > 1300 and rnd < 1410) or (rnd > 1800 and rnd < 1900):
+            do_bet(bet_a, 0)
+            do_bet(bet_b, 1)
+            principal_list.append(principal)
+
+        print "principal:", principal
+        print "--------------------------------------------------"
+
+    if len(sys.argv) == 2 and sys.argv[1] == 'p':
+        plt.title('show bet trend')
+        plt.xlabel('round')
+        plt.ylabel('bet')
+        for date in rounds:
+            plt.plot(rounds[date],
+                     beta_list[date],
+                     lazer_types[0],
+                     label='small_big.{0}'.format(date))
+
+            plt.plot(rounds[date],
+                     betb_list[date],
+                     lazer_types[1],
+                     label='single_double.{0}'.format(date))
+
+        plt.legend()
+        plt.show()
+    else:
+        plt.title('show principal trend')
+        plt.xlabel('round')
+        plt.ylabel('principal')
+        plt.plot(range(0, len(principal_list)),
+                 principal_list,
+                 lazer_types[0],
+                 label='principal'.format(date))
+        plt.legend()
+        plt.show()
 
 except Exception:
     print traceback.format_exc()
