@@ -42,7 +42,7 @@ def screenshot():
         browser.save_screenshot(filename)
         browser.close()
 
-        if night_mode:
+        if now.hour < 9 or now.hour > 22:
             # 夜间模式直接入库-1
             cursor = conn.cursor(pymysql.cursors.DictCursor)
             cursor.execute(
@@ -100,10 +100,6 @@ def screenshot():
 try:
     conn = pymysql.connect(**db_opt)
     conn.autocommit(True)
-    night_mode = False
-    if len(sys.argv) == 2 and sys.argv[1] == 'n':
-        # 夜间模式：只截图，不计算；入库为-1
-        night_mode = True
 
 except Exception:
     print "init mysql error"
