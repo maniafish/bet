@@ -22,7 +22,7 @@ begin_date = 201912050000
 end_date = 201912100000
 
 lazer_types = [
-    'b-.', 'r-.', 'g-', 'c-', 'm-', 'y-', 'k-',
+    'b-', 'r-', 'g-', 'c-', 'm-', 'y-', 'k-',
 ]
 
 # 下注矩阵
@@ -30,31 +30,47 @@ bet_list = [1, 3]
 # 最大下注轮数
 max_bet = len(bet_list)
 
+# 下注倍数
+multi_bet = 1
 factor_bet = [max_bet-1, max_bet-1]
 bet_counting = [0, 0]
-principal = 40
+principal = 40.0
+
+
+def check_bonus(actual_bet, bet_type):
+    global factor_bet
+    global principal
+    # 下注过程中回归bet，说明下注成功
+    if bet_counting[bet_type] == 1 and actual_bet == bet_list[0]:
+        principal += 1.96 * multi_bet * bet_list[factor_bet[bet_type]]
+        # 回归下注因子
+        factor_bet[bet_type] = max_bet - 1
 
 
 def do_bet(actual_bet, bet_type):
+    """ 下注 """
     global factor_bet
     global bet_counting
     global principal
-
-    # 下注过程中回归bet，说明下注成功
-    if bet_counting[bet_type] == 1 and actual_bet == bet_list[0]:
-        principal += 1.96 * bet_list[factor_bet[bet_type]]
-        # 回归下注因子
-        factor_bet[bet_type] = 0
-        print "do {0} bet".format(bet_type), bet_list[factor_bet[bet_type]]
-        principal -= bet_list[factor_bet[bet_type]]
-        bet_counting[bet_type] = 1
-        return
-
     # 持续下注
     factor_bet[bet_type] = (factor_bet[bet_type] + 1) % max_bet
-    print "do {0} bet".format(bet_type), bet_list[factor_bet[bet_type]]
-    principal -= bet_list[factor_bet[bet_type]]
+    print "do {0} bet".format(bet_type), multi_bet * bet_list[factor_bet[bet_type]]
+    principal -= multi_bet * bet_list[factor_bet[bet_type]]
     bet_counting[bet_type] = 1
+
+
+def reset_multi(principal):
+    """ 重设每日倍率 """
+    global factor_bet
+    global bet_counting
+    global multi_bet
+    sum_bet = 0
+    for i in bet_list:
+        sum_bet += i
+
+    multi_bet = principal / 10.0 / sum_bet
+    bet_counting = [0, 0]
+    factor_bet = [max_bet-1, max_bet-1]
 
 
 try:
@@ -76,6 +92,8 @@ try:
     # key: 日期, value: 单双bet值
     betb_list = {}
     principal_list = [principal]
+    temp_date = 0
+    temp_principal = 0
     for i in range(0, len(r)):
         bet_a = r[i]["bet_big"] if r[i]["bet_big"] else r[i]["bet_small"]
         bet_b = r[i]["bet_single"] if r[i]["bet_single"] else r[i]["bet_double"]
@@ -84,6 +102,12 @@ try:
 
         date = r[i]['bet_timestamp'] / 10000
         rnd = r[i]['bet_timestamp'] % 10000
+        # 新的一天
+        if date != temp_date:
+            temp_principal = principal
+            reset_multi(temp_principal)
+
+        temp_date = date
         if not rounds.get(date, None):
             rounds[date] = [rnd]
             beta_list[date] = [bet_a]
@@ -93,10 +117,18 @@ try:
             beta_list[date].append(bet_a)
             betb_list[date].append(bet_b)
 
-        if (rnd > 1300 and rnd < 1410):
-            do_bet(bet_a, 0)
-            do_bet(bet_b, 1)
-            principal_list.append(principal)
+        if (rnd > 1330 and rnd < 1410):
+            # 检查本次是否盈利
+            check_bonus(bet_a, 0)
+            check_bonus(bet_b, 1)
+
+            # 止盈和止损
+            if principal >= 0.7 * temp_principal and principal <= 1.3 * temp_principal:
+                do_bet(bet_a, 0)
+                do_bet(bet_b, 1)
+                principal_list.append(principal)
+            else:
+                bet_counting = [0, 0]
 
         print "principal:", principal
         print "--------------------------------------------------"

@@ -23,6 +23,8 @@ db_opt = {
 
 """
 TODO:
+1. 动态规划最佳下注区间(40min)
+2. 中断自动重新截图
 """
 
 
@@ -42,7 +44,7 @@ def screenshot():
         browser.save_screenshot(filename)
         browser.close()
 
-        if now.hour < 9 or now.hour > 22:
+        if now.hour < 8:
             # 夜间模式直接入库-1
             cursor = conn.cursor(pymysql.cursors.DictCursor)
             cursor.execute(
