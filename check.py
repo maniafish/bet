@@ -19,10 +19,10 @@ db_opt = {
 }
 
 begin_date = 201912050000
-end_date = 201912090000
+end_date = 201912100000
 
 lazer_types = [
-    'b-', 'r-', 'g-', 'c-', 'm-', 'y-', 'k-',
+    'b-.', 'r-.', 'g-', 'c-', 'm-', 'y-', 'k-',
 ]
 
 # 下注矩阵
@@ -93,7 +93,7 @@ try:
             beta_list[date].append(bet_a)
             betb_list[date].append(bet_b)
 
-        if (rnd > 1300 and rnd < 1410) or (rnd > 1800 and rnd < 1900):
+        if (rnd > 1300 and rnd < 1410):
             do_bet(bet_a, 0)
             do_bet(bet_b, 1)
             principal_list.append(principal)
@@ -106,14 +106,20 @@ try:
         plt.xlabel('round')
         plt.ylabel('bet')
         for date in rounds:
+            lazer_type_a = 0
+            lazer_type_b = 1
+            if date == 20191209:
+                lazer_type_a = 2
+                lazer_type_b = 3
+
             plt.plot(rounds[date],
                      beta_list[date],
-                     lazer_types[0],
+                     lazer_types[lazer_type_a],
                      label='small_big.{0}'.format(date))
 
             plt.plot(rounds[date],
                      betb_list[date],
-                     lazer_types[1],
+                     lazer_types[lazer_type_b],
                      label='single_double.{0}'.format(date))
 
         plt.legend()
