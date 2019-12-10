@@ -24,21 +24,24 @@ def set_multi(line):
         return 0, 0
 
 
-def parse_image(filename):
+def parse_image(filename, cut=True):
     """ 图像解析 """
     try:
-        img = Image.open(filename)
-        wide, height = img.size
-        w_factor = wide / 800.0
-        h_factor = height / 600.0
-        # 图像截取
-        img_x = 56 * w_factor
-        img_y = 180 * h_factor
-        img_w = 180 * w_factor
-        img_h = 120 * h_factor
-        region = img.crop((img_x, img_y, img_x+img_w, img_y+img_h))
-        img_name = "{0}_tmp.png".format(filename.rstrip('.png'))
-        region.save(img_name)
+        if cut:
+            img = Image.open(filename)
+            wide, height = img.size
+            w_factor = wide / 800.0
+            h_factor = height / 600.0
+            # 图像截取
+            img_x = 56 * w_factor
+            img_y = 180 * h_factor
+            img_w = 180 * w_factor
+            img_h = 120 * h_factor
+            region = img.crop((img_x, img_y, img_x+img_w, img_y+img_h))
+            img_name = "{0}_tmp.png".format(filename.rstrip('.png'))
+            region.save(img_name)
+        else:
+            img_name = filename
 
         # 分上下两半，上为大小，下为单双
         tmp = Image.open(img_name)
