@@ -18,8 +18,8 @@ db_opt = {
     'db': 'bonus',
 }
 
-begin_date = 201912050000
-end_date = 201912100000
+begin_date = 201912110000
+end_date = 201912130000
 
 lazer_types = [
     'b-', 'r-', 'g-', 'c-', 'm-', 'y-', 'k-',
@@ -140,7 +140,7 @@ try:
         for date in rounds:
             lazer_type_a = 0
             lazer_type_b = 1
-            if date == 20191209:
+            if date == 20191210:
                 lazer_type_a = 2
                 lazer_type_b = 3
 

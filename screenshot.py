@@ -15,6 +15,7 @@ import requests
 from apscheduler.schedulers.blocking import BlockingScheduler
 from utils import parse_image
 from conf import req
+from urllib import quote
 
 db_opt = {
     'host': '127.0.0.1', 'user': 'root', 'passwd': 'test',
@@ -24,11 +25,13 @@ db_opt = {
 """
 TODO:
 1. 动态规划最佳下注区间(40min)
+2. bug: chrome截图出现失败的情况
 """
 
 
 def screenshot():
     now = datetime.now()
+    timestamp = now.strftime("%Y%m%d%H%M")
     print "do screenshot: {0}".format(now)
     filename = "./images/{0}.png".format(now.strftime("%Y%m%d%H%M"))
     try:
@@ -63,11 +66,6 @@ def screenshot():
             bet_map[roundid] = {}
             state = -1
 
-        # 出现单双的9倍和108倍发送消息，下一次跳变可进行一次4轮定投
-        if bet_map[roundid].get('bet_single', 0) in (9, 108) or bet_map[roundid].get('bet_double', 0) in (9, 108):
-            pass
-            #requests.get(req)
-
         # 当bet_a和bet_b有且仅有一个>0，另一个为0时，记录有效
         if not ((bet_map[roundid].get('bet_single', 0) > 0 and bet_map[roundid].get('bet_double', 0) == 0) or (bet_map[roundid].get('bet_double', 0) > 0 and bet_map[roundid].get('bet_single', 0) == 0)):
             print "invalid single_double"
@@ -84,7 +82,7 @@ def screenshot():
              'bet_big, bet_small, roundid, state) '
              'VALUES(%s,%s,%s,%s,%s,%s,%s)'
              ),
-            [now.strftime("%Y%m%d%H%M"),
+            [timestamp,
              str(bet_map[roundid].get('bet_single', 0)),
              str(bet_map[roundid].get('bet_double', 0)),
              str(bet_map[roundid].get('bet_big', 0)),
@@ -94,9 +92,17 @@ def screenshot():
         )
         cursor.close()
 
+        # 状态错误发送信息
+        msg = quote("{0}: -1".format(timestamp))
+        if state == -1:
+            requests.get("{0}{1}".format(req, msg))
+
     except Exception:
         print "invalid file: {0}".format(filename)
         print traceback.format_exc()
+        msg = quote("{0}: traceback".format(timestamp))
+        if state == -1:
+            requests.get("{0}{1}".format(req, msg))
 
 
 try:
