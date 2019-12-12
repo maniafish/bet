@@ -1,10 +1,14 @@
 # coding: utf-8
 
 """
-定时执行抓取任务，图像识别并入库（夜间模式只抓取，不识别）
+定时执行抓取任务，图像识别并入库
 """
 
 from selenium import webdriver
+from selenium.common.exceptions import TimeoutException
+from selenium.webdriver.common.by import By
+from selenium.webdriver.support.ui import WebDriverWait
+from selenium.webdriver.support import expected_conditions as EC
 from datetime import datetime
 import traceback
 import pymysql
@@ -41,20 +45,29 @@ def screenshot():
         option.add_argument('headless')
         browser = webdriver.Chrome('./chromedriver', chrome_options=option)
         browser.get('https://69960a.com/chat/index.html?web#/room/879')
-        # 等10s页面完全刷新
-        time.sleep(5)
-        browser.save_screenshot(filename)
-        browser.close()
+        max_retry = 3
+        while max_retry > 0:
+            try:
+                # 至多等8s
+                element = WebDriverWait(browser, 8)
+                element.until(EC.presence_of_element_located((By.ID, "app")))
+                browser.save_screenshot(filename)
+                # 设置max_retry值=5，表示抓取成功
+                max_retry = 5
+                break
+            except TimeoutException:
+                # 超时刷新重新等待
+                print "get page timeout"
+                browser.refresh()
+                max_retry -= 1
+                continue
+            except Exception:
+                print traceback.format_exc()
+                break
 
-        if now.hour < 8:
-            # 夜间模式直接入库-1
-            cursor = conn.cursor(pymysql.cursors.DictCursor)
-            cursor.execute(
-                'INSERT INTO rounds(bet_timestamp, state) VALUES(%s,-1)',
-                [now.strftime("%Y%m%d%H%M"), ]
-            )
-            cursor.close()
-            return
+        browser.close()
+        if max_retry != 5:
+            raise
 
         # 2. 图像识别
         roundid, bet_map = parse_image(filename)
@@ -101,8 +114,7 @@ def screenshot():
         print "invalid file: {0}".format(filename)
         print traceback.format_exc()
         msg = quote("{0}: traceback".format(timestamp))
-        if state == -1:
-            requests.get("{0}{1}".format(req, msg))
+        requests.get("{0}{1}".format(req, msg))
 
 
 try:
@@ -116,5 +128,5 @@ except Exception:
 
 logging.basicConfig()
 scheduler = BlockingScheduler()
-scheduler.add_job(screenshot, 'cron', second='30', max_instances=3)
+scheduler.add_job(screenshot, 'cron', second='35', max_instances=5)
 scheduler.start()
