@@ -34,16 +34,11 @@ def set_skip_height(skip, begin):
 
 def do_fix(bet_timestamp, conn):
     """ 处理图片执行fix记录 """
-    # 1. 裁剪图片
+    # 1. 处理图片
     filename = "./images/{0}.png".format(bet_timestamp)
-    img = Image.open(filename)
-    region = img.crop((125, 140, 125+400, 140+210))
-    img_name = "{0}_tmp.png".format(filename.rstrip('.png'))
-    region.save(img_name)
     print "parse file {0}".format(filename)
-    # 2. 处理图片
-    roundid, bet_map = parse_image(img_name, False)
-    # 3. 错误处理
+    roundid, bet_map = parse_image(filename, 2)
+    # 2. 错误处理
     state = 2
     if roundid == -1:
         print "invalid file: {0}".format(filename)
@@ -59,7 +54,7 @@ def do_fix(bet_timestamp, conn):
         print "invalid big_small"
         state = -1
 
-    # 4. 入库
+    # 3. 入库
     cursor = conn.cursor(pymysql.cursors.DictCursor)
     cursor.execute(
         ('INSERT INTO rounds(bet_timestamp, bet_single, bet_double, '

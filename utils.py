@@ -24,11 +24,12 @@ def set_multi(line):
         return 0, 0
 
 
-def parse_image(filename, cut=True):
+def parse_image(filename, cut_type=1):
     """ 图像解析 """
     try:
-        if cut:
-            img = Image.open(filename)
+        img = Image.open(filename)
+        img_name = "{0}_tmp.png".format(filename.rstrip('.png'))
+        if cut_type == 1:
             wide, height = img.size
             w_factor = wide / 800.0
             h_factor = height / 600.0
@@ -38,10 +39,13 @@ def parse_image(filename, cut=True):
             img_w = 180 * w_factor
             img_h = 120 * h_factor
             region = img.crop((img_x, img_y, img_x+img_w, img_y+img_h))
-            img_name = "{0}_tmp.png".format(filename.rstrip('.png'))
+            region.save(img_name)
+        elif cut_type == 2:
+            region = img.crop((125, 140, 125+400, 140+210))
             region.save(img_name)
         else:
-            img_name = filename
+            print "invalid cut_type: {0}".format(cut_type)
+            return -1, {}
 
         # 分上下两半，上为大小，下为单双
         tmp = Image.open(img_name)
@@ -109,9 +113,12 @@ def parse_image(filename, cut=True):
                     # 上一个roundid有效，延用上一个roundid
                     bet_map[roundid][bet_type] = bet
 
+                roundid = tmp_roundid
                 break
 
         os.remove(img_name)
+        os.remove(tmp1)
+        os.remove(tmp2)
         return roundid, bet_map
 
     except Exception:

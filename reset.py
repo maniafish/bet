@@ -4,18 +4,20 @@
 重新识别数据库中状态为-1的轮次
 """
 
+import sys
 import pymysql
 import traceback
 from utils import parse_image
 from datetime import datetime, timedelta
+from PIL import Image
 
 db_opt = {
     'host': '127.0.0.1', 'user': 'root', 'passwd': 'test',
     'db': 'bonus',
 }
 
-begin_date = 201912112039
-end_date = 201912112040
+begin_date = 201912110000
+end_date = 201912130000
 bet_list = [1, 3, 9]
 
 
@@ -130,6 +132,11 @@ def traverse_bet(bet_timestamp, bet_a, bet_b):
 
 
 try:
+    cut = 1
+    if len(sys.argv) == 2:
+        # 从fix来的
+        cut = int(sys.argv[1])
+
     conn = pymysql.connect(**db_opt)
     conn.autocommit(True)
     cursor = conn.cursor(pymysql.cursors.DictCursor)
@@ -144,12 +151,12 @@ try:
     for i in range(0, len(r)):
         filename = './images/{0}.png'.format(r[i]['bet_timestamp'])
         print "parse file: {0}".format(filename)
-        roundid, bet_map = parse_image(filename)
+        roundid, bet_map = parse_image(filename, cut)
 
         if roundid == -1:
-            # 完全没解出来的，就不用挣扎了
             print "invalid file: {0}".format(filename)
-            continue
+            if not bet_map.get(roundid):
+                bet_map[roundid] = {}
 
         state = 0
         print "debug bet_map:", bet_map
