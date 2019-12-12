@@ -93,16 +93,17 @@ try:
             fn = "./images/{0}".format(filename)
             region.save(fn)
             img = Image.open(fn)
+            j = 0
             for i in range(begin, end + 1):
                 # 时间超过59分，跳过
                 if i % 100 >= 60:
                     continue
 
-                j = i - begin
                 region = img.crop((0, j*round_height, 800, (j+1)*round_height))
                 bet_timestamp = "%s%04d" % (date, i)
                 region.save("./images/{0}.png".format(bet_timestamp))
                 do_fix(bet_timestamp, conn)
+                j += 1
 
 except Exception:
     print traceback.format_exc()

@@ -14,8 +14,8 @@ db_opt = {
     'db': 'bonus',
 }
 
-begin_date = 201912080000
-end_date = 201912100000
+begin_date = 201912112039
+end_date = 201912112040
 bet_list = [1, 3, 9]
 
 

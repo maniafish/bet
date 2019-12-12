@@ -59,7 +59,7 @@ def parse_image(filename, cut=True):
         # 解析大小
         out = pytesseract.image_to_string(Image.open(tmp1), lang='chi_sim')
         for line in out.split('\n'):
-            if line.find(u'期') > 0:
+            if line.find(u'期') > 0 or line.find(u'服') > 0:
                 print line
                 if line.find(u'大') > 0:
                     roundid, bet = set_multi(line)
