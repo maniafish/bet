@@ -12,7 +12,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from datetime import datetime
 import traceback
 import pymysql
-import time
 import sys
 import logging
 import requests
@@ -67,10 +66,12 @@ def screenshot():
 
         browser.close()
         if max_retry != 5:
+            print "get page failed"
             raise
 
         # 2. 图像识别
         roundid, bet_map = parse_image(filename)
+        print "roundid: {0}, bet_map: {1}".format(roundid, bet_map)
 
         state = 0
         # 3. 错误处理
