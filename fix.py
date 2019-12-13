@@ -82,6 +82,8 @@ try:
             begin = int(begin)
             end = int(end)
             skip_height = set_skip_height(skip, begin)
+            # 提高图片处理像素上限
+            Image.MAX_IMAGE_PIXELS = 3 * Image.MAX_IMAGE_PIXELS
             img = Image.open("./fix_images/{0}".format(filename))
             _, total_height = img.size
             region = img.crop((0, skip_height, 800, total_height))
