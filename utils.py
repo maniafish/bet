@@ -24,7 +24,7 @@ def set_multi(line):
         return 0, 0
 
 
-def parse_image(filename, cut_type=1):
+def parse_image(filename, cut_type=1, factor=1):
     """ 图像解析 """
     try:
         img = Image.open(filename)
@@ -41,7 +41,7 @@ def parse_image(filename, cut_type=1):
             region = img.crop((img_x, img_y, img_x+img_w, img_y+img_h))
             region.save(img_name)
         elif cut_type == 2:
-            region = img.crop((125, 140, 125+400, 140+210))
+            region = img.crop((125*factor, 140*factor, (125+400)*factor, (140+210)*factor))
             region.save(img_name)
         else:
             print "invalid cut_type: {0}".format(cut_type)

@@ -16,12 +16,13 @@ db_opt = {
 }
 
 
-round_height = 696
+factor = 1
+round_height = 696 * factor
 
 
 def set_skip_height(skip, begin):
     """ 设置需要跳过的头部高度 """
-    skip_height = 192
+    skip_height = 192 * factor
     for i in range(skip, begin):
         # 时间超过59分，跳过
         if i % 100 >= 60:
@@ -37,7 +38,7 @@ def do_fix(bet_timestamp, conn):
     # 1. 处理图片
     filename = "./images/{0}.png".format(bet_timestamp)
     print "parse file {0}".format(filename)
-    roundid, bet_map = parse_image(filename, 2)
+    roundid, bet_map = parse_image(filename, 2, factor)
     # 2. 错误处理
     state = 2
     if roundid == -1:
@@ -86,7 +87,7 @@ try:
             Image.MAX_IMAGE_PIXELS = 3 * Image.MAX_IMAGE_PIXELS
             img = Image.open("./fix_images/{0}".format(filename))
             _, total_height = img.size
-            region = img.crop((0, skip_height, 800, total_height))
+            region = img.crop((0, skip_height, 800 * factor, total_height))
             fn = "./images/{0}".format(filename)
             region.save(fn)
             img = Image.open(fn)
@@ -96,7 +97,7 @@ try:
                 if i % 100 >= 60:
                     continue
 
-                region = img.crop((0, j*round_height, 800, (j+1)*round_height))
+                region = img.crop((0, j*round_height, 800 * factor, (j+1)*round_height))
                 bet_timestamp = "%s%04d" % (date, i)
                 region.save("./images/{0}.png".format(bet_timestamp))
                 do_fix(bet_timestamp, conn)
