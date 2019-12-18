@@ -17,13 +17,9 @@ import logging
 import requests
 from apscheduler.schedulers.blocking import BlockingScheduler
 from utils import parse_image
-from conf import req
+from conf import req, db_opt
 from urllib import quote
 
-db_opt = {
-    'host': '127.0.0.1', 'user': 'root', 'passwd': 'test',
-    'db': 'bonus',
-}
 
 """
 TODO:
@@ -33,6 +29,10 @@ TODO:
 
 def screenshot():
     now = datetime.now()
+    # 夜晚不做处理
+    if now.hour < 8:
+        return
+
     timestamp = now.strftime("%Y%m%d%H%M")
     print "do screenshot: {0}".format(now)
     filename = "./images/{0}.png".format(now.strftime("%Y%m%d%H%M"))

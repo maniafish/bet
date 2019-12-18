@@ -9,11 +9,7 @@ import pymysql
 import traceback
 from utils import parse_image
 from datetime import datetime, timedelta
-
-db_opt = {
-    'host': '127.0.0.1', 'user': 'root', 'passwd': 'test',
-    'db': 'bonus',
-}
+from conf import db_opt
 
 begin_date = 201912130000
 end_date = 201912140000

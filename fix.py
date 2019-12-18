@@ -9,12 +9,7 @@ import pymysql
 import traceback
 from PIL import Image
 from utils import parse_image
-
-db_opt = {
-    'host': '127.0.0.1', 'user': 'root', 'passwd': 'test',
-    'db': 'bonus',
-}
-
+from conf import db_opt
 
 factor = 1
 round_height = 696 * factor

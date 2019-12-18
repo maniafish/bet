@@ -4,6 +4,7 @@
 模拟下注
 """
 
+from conf import db_opt
 import pymysql
 import traceback
 import sys
@@ -12,11 +13,6 @@ matplotlib.use('TkAgg')
 
 import matplotlib.pyplot as plt
 
-
-db_opt = {
-    'host': '127.0.0.1', 'user': 'root', 'passwd': 'test',
-    'db': 'bonus',
-}
 
 begin_date = 201912110000
 end_date = 201912130000
