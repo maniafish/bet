@@ -12,7 +12,6 @@ from selenium.webdriver.support import expected_conditions as EC
 from datetime import datetime
 import traceback
 import pymysql
-import sys
 import logging
 import requests
 from apscheduler.schedulers.blocking import BlockingScheduler
@@ -89,6 +88,8 @@ def screenshot():
             state = -1
 
         # 4. 入库
+        conn = pymysql.connect(**db_opt)
+        conn.autocommit(True)
         cursor = conn.cursor(pymysql.cursors.DictCursor)
         cursor.execute(
             ('INSERT INTO rounds(bet_timestamp, bet_single, bet_double, '
@@ -116,15 +117,6 @@ def screenshot():
         msg = quote("{0}: traceback".format(timestamp))
         requests.get("{0}{1}".format(req, msg))
 
-
-try:
-    conn = pymysql.connect(**db_opt)
-    conn.autocommit(True)
-
-except Exception:
-    print "init mysql error"
-    print traceback.format_exc()
-    sys.exit(1)
 
 logging.basicConfig()
 scheduler = BlockingScheduler()

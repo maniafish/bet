@@ -11,8 +11,6 @@ from utils import parse_image
 from datetime import datetime, timedelta
 from conf import db_opt
 
-begin_date = 201912130000
-end_date = 201912140000
 bet_list = [1, 3, 9]
 
 
@@ -137,9 +135,7 @@ try:
     cursor = conn.cursor(pymysql.cursors.DictCursor)
     cursor.execute(
         ('SELECT bet_timestamp, bet_small, bet_big, bet_single, bet_double '
-         'FROM rounds WHERE state = -1 '
-         'AND bet_timestamp BETWEEN %s AND %s ORDER BY bet_timestamp'),
-        [str(begin_date), str(end_date)]
+         'FROM rounds WHERE state = -1 ORDER BY bet_timestamp'),
     )
     r = cursor.fetchall()
     cursor.close()
@@ -180,7 +176,9 @@ try:
                 bet_type, bet, ok = traverse_bet(r[i]['bet_timestamp'], 'bet_small', 'bet_big')
                 if ok:
                     bet_map[roundid][bet_type] = bet
-                    state = 1
+                    # 单双没问题，大小也没问题才设置
+                    if state != -1:
+                        state = 1
                 else:
                     state = -1
 
