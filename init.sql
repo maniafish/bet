@@ -5,7 +5,7 @@ CREATE TABLE `rounds` (
   `bet_big` int(11) NOT NULL DEFAULT '0' COMMENT '大下注倍率',
   `bet_small` int(11) NOT NULL DEFAULT '0' COMMENT '小下注倍率',
   `roundid` int(11) NOT NULL DEFAULT '0' COMMENT '当前轮次',
-  `state` int(11) NOT NULL DEFAULT '0' COMMENT '本条记录状态: 0, 正常; -1, 记录异常; 1, 修复后的记录',
+  `state` int(11) NOT NULL DEFAULT '0' COMMENT '本条记录状态: 0, 正常; -1, 记录异常; 1, rreset预测记录；2，fix修复后的记录',
   `updatetime` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`bet_timestamp`),
   KEY `roundid` (`roundid`),

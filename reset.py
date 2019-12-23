@@ -1,40 +1,15 @@
 # coding: utf-8
 
 """
-重新识别数据库中状态为-1的轮次
+分析预测数据库中状态为-1的轮次
 """
 
-import sys
 import pymysql
 import traceback
-from utils import parse_image
 from datetime import datetime, timedelta
 from conf import db_opt
 
 bet_list = [1, 3, 9]
-
-
-def set_multi(line):
-    """ 解析行中的轮次和倍率 """
-    s = line.split()
-    try:
-        roundid = int(s[0])
-        bet = 0
-        # 反向遍历第一个数字为倍率
-        for i in range(len(s)-1, 0, -1):
-            try:
-                bet = int(s[i])
-                break
-            except:
-                continue
-
-        if not bet:
-            raise
-    except Exception:
-        print traceback.format_exc()
-        return -1, 0
-
-    return roundid, bet
 
 
 def get_bet_duration(bet_timestamp):
@@ -125,75 +100,49 @@ def traverse_bet(bet_timestamp, bet_a, bet_b):
 
 
 try:
-    cut = 1
-    if len(sys.argv) == 2:
-        # 从fix来的
-        cut = int(sys.argv[1])
-
     conn = pymysql.connect(**db_opt)
     conn.autocommit(True)
     cursor = conn.cursor(pymysql.cursors.DictCursor)
     cursor.execute(
-        ('SELECT bet_timestamp, bet_small, bet_big, bet_single, bet_double '
+        ('SELECT bet_timestamp, bet_small, bet_big, bet_single, bet_double, roundid, state '
          'FROM rounds WHERE state = -1 ORDER BY bet_timestamp'),
     )
     r = cursor.fetchall()
     cursor.close()
     for i in range(0, len(r)):
-        filename = './images/{0}.png'.format(r[i]['bet_timestamp'])
-        print "parse file: {0}".format(filename)
-        roundid, bet_map = parse_image(filename, cut)
-
-        if roundid == -1:
-            print "invalid file: {0}".format(filename)
-            if not bet_map.get(roundid):
-                bet_map[roundid] = {}
-
-        state = 0
-        print "debug bet_map:", bet_map
+        print i, 'before reset', r[i]
         # 当bet_a和bet_b有且仅有一个>0，另一个为0时，记录有效
         # 单双没解出来的，递归预测出一个结果来
-        if not ((bet_map[roundid].get('bet_single', 0) > 0 and bet_map[roundid].get('bet_double', 0) == 0) or (bet_map[roundid].get('bet_double', 0) > 0 and bet_map[roundid].get('bet_single', 0) == 0)):
-            if (r[i]['bet_single'] > 0 and r[i]['bet_double'] == 0) or (r[i]['bet_double'] > 0 and r[i]['bet_single'] == 0):
-                # 数据库中查出了有效值，但是解析时没有有效值，则使用数据库的值
-                bet_map[roundid]['bet_single'] = r[i]['bet_single']
-                bet_map[roundid]['bet_double'] = r[i]['bet_double']
+        if not ((r[i].get('bet_single', 0) > 0 and r[i].get('bet_double', 0) == 0) or (r[i].get('bet_double', 0) > 0 and r[i].get('bet_single', 0) == 0)):
+            bet_type, bet, ok = traverse_bet(r[i]['bet_timestamp'], 'bet_single', 'bet_double')
+            if ok:
+                r[i][bet_type] = bet
+                r[i]['state'] = 1
             else:
-                bet_type, bet, ok = traverse_bet(r[i]['bet_timestamp'], 'bet_single', 'bet_double')
-                if ok:
-                    bet_map[roundid][bet_type] = bet
-                    state = 1
-                else:
-                    state = -1
+                r[i]['state'] = -1
 
         # 大小没解出来的，递归预测出一个结果来
-        if not ((bet_map[roundid].get('bet_small', 0) > 0 and bet_map[roundid].get('bet_big', 0) == 0) or (bet_map[roundid].get('bet_big', 0) > 0 and bet_map[roundid].get('bet_small', 0) == 0)):
-            if (r[i]['bet_small'] > 0 and r[i]['bet_big'] == 0) or (r[i]['bet_big'] > 0 and r[i]['bet_small'] == 0):
-                # 数据库中查出了有效值，但是解析时没有有效值，则使用数据库的值
-                bet_map[roundid]['bet_small'] = r[i]['bet_small']
-                bet_map[roundid]['bet_big'] = r[i]['bet_big']
+        if not ((r[i].get('bet_small', 0) > 0 and r[i].get('bet_big', 0) == 0) or (r[i].get('bet_big', 0) > 0 and r[i].get('bet_small', 0) == 0)):
+            bet_type, bet, ok = traverse_bet(r[i]['bet_timestamp'], 'bet_small', 'bet_big')
+            if ok:
+                r[i][bet_type] = bet
+                # 单双没问题，大小也没问题才设置
+                if r[i]['state'] != -1:
+                    r[i]['state'] = 1
             else:
-                bet_type, bet, ok = traverse_bet(r[i]['bet_timestamp'], 'bet_small', 'bet_big')
-                if ok:
-                    bet_map[roundid][bet_type] = bet
-                    # 单双没问题，大小也没问题才设置
-                    if state != -1:
-                        state = 1
-                else:
-                    state = -1
+                r[i]['state'] = -1
 
-        print "debug", roundid, "bet_map after set:", bet_map
+        print i, 'after reset', r[i]
         cursor = conn.cursor(pymysql.cursors.DictCursor)
         cursor.execute(
             ('UPDATE rounds SET bet_single = %s, bet_double = %s, '
-             'bet_big = %s, bet_small = %s, roundid = %s, state = %s '
+             'bet_big = %s, bet_small = %s, state = %s '
              'WHERE bet_timestamp = %s'),
-            [str(bet_map[roundid].get('bet_single', 0)),
-             str(bet_map[roundid].get('bet_double', 0)),
-             str(bet_map[roundid].get('bet_big', 0)),
-             str(bet_map[roundid].get('bet_small', 0)),
-             str(roundid),
-             str(state),
+            [str(r[i].get('bet_single', 0)),
+             str(r[i].get('bet_double', 0)),
+             str(r[i].get('bet_big', 0)),
+             str(r[i].get('bet_small', 0)),
+             str(r[i].get('state', 0)),
              str(r[i]['bet_timestamp'])]
         )
         cursor.close()

@@ -18,12 +18,15 @@ from apscheduler.schedulers.blocking import BlockingScheduler
 from utils import parse_image
 from conf import req, db_opt
 from urllib import quote
+import time
 
 
 """
 TODO:
-1. 动态规划最佳下注区间(40min)
+1. 网络状况差时的截图处理
+2. 失败未入库的情况
 """
+succ = 100
 
 
 def screenshot():
@@ -41,16 +44,20 @@ def screenshot():
         option.add_argument('disable-infobars')
         option.add_argument('headless')
         browser = webdriver.Chrome('./chromedriver', chrome_options=option)
+        browser.set_page_load_timeout(15)
+        browser.set_script_timeout(15)
         browser.get('https://69960a.com/chat/index.html?web#/room/879')
         max_retry = 3
         while max_retry > 0:
             try:
-                # 至多等8s
-                element = WebDriverWait(browser, 8)
-                element.until(EC.presence_of_element_located((By.ID, "app")))
+                # 至多等5s
+                element = WebDriverWait(browser, 5)
+                element.until(EC.presence_of_element_located((By.XPATH, '//script[contains(@src, "app")]')))
+                # 等5s保证刷新
+                time.sleep(5)
                 browser.save_screenshot(filename)
-                # 设置max_retry值=5，表示抓取成功
-                max_retry = 5
+                # 设置max_retry值=succ，表示抓取成功
+                max_retry = succ
                 break
             except TimeoutException:
                 # 超时刷新重新等待
@@ -62,8 +69,8 @@ def screenshot():
                 print traceback.format_exc()
                 break
 
-        browser.close()
-        if max_retry != 5:
+        browser.quit()
+        if max_retry != succ:
             print "get page failed"
             raise
 
@@ -120,5 +127,5 @@ def screenshot():
 
 logging.basicConfig()
 scheduler = BlockingScheduler()
-scheduler.add_job(screenshot, 'cron', second='35', max_instances=5)
+scheduler.add_job(screenshot, 'cron', second='25', max_instances=5)
 scheduler.start()
