@@ -36,7 +36,6 @@ def screenshot():
         return
 
     timestamp = now.strftime("%Y%m%d%H%M")
-    print "do screenshot: {0}".format(now)
     try:
         # 0. 预处理入库
         conn = pymysql.connect(**db_opt)
@@ -70,12 +69,12 @@ def screenshot():
                 break
             except TimeoutException:
                 # 超时刷新重新等待
-                print "get page timeout"
+                logging.info("get page timeout")
                 browser.refresh()
                 max_retry -= 1
                 continue
             except Exception:
-                print traceback.format_exc()
+                logging.error(traceback.format_exc())
                 break
 
         browser.quit()
@@ -117,27 +116,29 @@ def screenshot():
         cursor.close()
 
         # 状态错误发送信息
-        msg = quote("{0}: -1".format(timestamp))
         if state == -1:
+            msg = quote("{0}: -1".format(timestamp))
             requests.get("{0}{1}".format(req, msg))
 
     except Exception:
-        print "invalid file: {0}".format(filename)
-        trace_msg = traceback.format_exc()
-        print trace_msg
+        logging.error("invalid file: {0}".format(filename))
+        logging.error(traceback.format_exc())
         try:
-            msg = quote("{0}: {1}".format(timestamp, trace_msg))
-            response = requests.get("{0}{1}".format(req, msg))
+            msg = quote("{0}: traceback".format(timestamp))
+            response = requests.get(msg)
             ret = json.loads(response.content)
             if ret.get('code', -1) != 200:
                 raise Exception("{0}".format(response.content))
         except Exception:
-            print traceback.format_exc()
-            msg = quote("{0}: traceback error".format(timestamp))
-            requests.get("{0}{1}".format(req, msg))
+            logging.error(traceback.format_exc())
 
 
-logging.basicConfig()
+logging.basicConfig(
+    filename='run.log',
+    level=logging.INFO,
+    format="%(asctime)s - %(levelname)s - %(message)s"
+)
+
 scheduler = BlockingScheduler()
 scheduler.add_job(screenshot, 'cron', second='25', max_instances=5)
 scheduler.start()
