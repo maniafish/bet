@@ -125,7 +125,7 @@ def screenshot():
         logging.error(traceback.format_exc())
         try:
             msg = quote("{0}: traceback".format(timestamp))
-            response = requests.get(msg)
+            response = requests.get("{0}{1}".format(req, msg))
             ret = json.loads(response.content)
             if ret.get('code', -1) != 200:
                 raise Exception("{0}".format(response.content))
