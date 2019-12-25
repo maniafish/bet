@@ -20,6 +20,7 @@ from conf import req, db_opt
 from urllib import quote
 import time
 import json
+import os
 
 
 """
@@ -133,8 +134,10 @@ def screenshot():
             logging.error(traceback.format_exc())
 
 
+log_file = 'run.log'
+os.rename(log_file, '{0}.{1}'.format(log_file, datetime.now().strftime("%Y%m%d%H%M")))
 logging.basicConfig(
-    filename='run.log',
+    filename=log_file,
     level=logging.INFO,
     format="%(asctime)s - %(levelname)s - %(message)s"
 )
