@@ -13,10 +13,10 @@ bet_list = [1, 3, 9]
 
 
 def get_bet_duration(bet_timestamp):
-    """ 读取前1分钟到后10分钟的数据 """
+    """ 读取前1分钟到后2分钟的数据 """
     t = datetime.strptime(str(bet_timestamp), "%Y%m%d%H%M")
     begin_t = t - timedelta(minutes=1)
-    end_t = t + timedelta(minutes=10)
+    end_t = t + timedelta(minutes=2)
     cursor = conn.cursor(pymysql.cursors.DictCursor)
     cursor.execute(
         ('SELECT bet_timestamp, bet_single, bet_double, bet_small, bet_big '
@@ -89,10 +89,12 @@ def traverse_bet(bet_timestamp, bet_a, bet_b):
                 # 几轮后倍率 * 2
                 expect = pre_bet * 2
 
+            post_expect = expect
             if do_traverse(r, 2, bet_a, bet_b, expect):
                 return bet_type, expect, True
 
-        return bet_b, 0, False
+        # 实在预测不中，就用上一轮的下个倍率作为expect
+        return bet_type, post_expect, True
 
     except Exception:
         print traceback.format_exc()
@@ -109,6 +111,8 @@ try:
     )
     r = cursor.fetchall()
     cursor.close()
+    # 默认state
+    state = 1
     for i in range(0, len(r)):
         print i, 'before reset', r[i]
         # 当bet_a和bet_b有且仅有一个>0，另一个为0时，记录有效
@@ -117,9 +121,9 @@ try:
             bet_type, bet, ok = traverse_bet(r[i]['bet_timestamp'], 'bet_single', 'bet_double')
             if ok:
                 r[i][bet_type] = bet
-                r[i]['state'] = 1
+                state = 1
             else:
-                r[i]['state'] = -1
+                state = -1
 
         # 大小没解出来的，递归预测出一个结果来
         if not ((r[i].get('bet_small', 0) > 0 and r[i].get('bet_big', 0) == 0) or (r[i].get('bet_big', 0) > 0 and r[i].get('bet_small', 0) == 0)):
@@ -127,11 +131,12 @@ try:
             if ok:
                 r[i][bet_type] = bet
                 # 单双没问题，大小也没问题才设置
-                if r[i]['state'] != -1:
-                    r[i]['state'] = 1
+                if state != -1:
+                    state = 1
             else:
-                r[i]['state'] = -1
+                state = -1
 
+        r[i]['state'] = state
         print i, 'after reset', r[i]
         cursor = conn.cursor(pymysql.cursors.DictCursor)
         cursor.execute(
@@ -142,7 +147,7 @@ try:
              str(r[i].get('bet_double', 0)),
              str(r[i].get('bet_big', 0)),
              str(r[i].get('bet_small', 0)),
-             str(r[i].get('state', 0)),
+             str(r[i].get('state', -1)),
              str(r[i]['bet_timestamp'])]
         )
         cursor.close()
