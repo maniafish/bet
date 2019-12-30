@@ -58,32 +58,13 @@ def screenshot():
         browser.set_page_load_timeout(15)
         browser.set_script_timeout(15)
         browser.get('https://69960a.com/chat/index.html?web#/room/879')
-        max_retry = 3
-        while max_retry > 0:
-            try:
-                # 至多等5s
-                element = WebDriverWait(browser, 5)
-                element.until(EC.presence_of_element_located((By.XPATH, '//script[contains(@src, "app")]')))
-                # 等5s保证刷新
-                time.sleep(5)
-                browser.save_screenshot(filename)
-                # 设置max_retry值=succ，表示抓取成功
-                max_retry = succ
-                break
-            except TimeoutException:
-                # 超时刷新重新等待
-                logging.info("get page timeout")
-                browser.refresh()
-                max_retry -= 1
-                continue
-            except Exception:
-                logging.error(traceback.format_exc())
-                break
-
+        # 至多等10s
+        element = WebDriverWait(browser, 10)
+        element.until(EC.presence_of_element_located((By.XPATH, '//script[contains(@src, "app")]')))
+        # 等5s保证刷新
+        time.sleep(5)
+        browser.save_screenshot(filename)
         browser.quit()
-        if max_retry != succ:
-            raise Exception("get_page_failed")
-
         # 2. 图像识别
         roundid, bet_map = parse_image(filename)
         print "roundid: {0}, bet_map: {1}".format(roundid, bet_map)

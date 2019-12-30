@@ -11,3 +11,9 @@ CREATE TABLE `rounds` (
   KEY `roundid` (`roundid`),
   KEY `state` (`state`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='轮次信息表';
+
+CREATE TABLE `principals` (
+  `bet_timestamp` bigint(20) NOT NULL DEFAULT '0' COMMENT '当前时间戳(到分钟为止)，格式: 201912051700',
+  `small` double NOT NULL DEFAULT '0' COMMENT 'BetSmall类下注本金',
+  PRIMARY KEY (`bet_timestamp`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci COMMENT='下注策略曲线';
