@@ -5,19 +5,20 @@
 """
 
 from conf import db_opt
-from strategy import BetSmall
+from strategy import BetSmall, BetNormal, BetN
 import pymysql
 import traceback
 
 
-begin_date = 20191207
-end_date = 20191228
+begin_date = 20191206
+end_date = 20191230
 
 try:
     conn = pymysql.connect(**db_opt)
     conn.autocommit(True)
     cursor = conn.cursor(pymysql.cursors.DictCursor)
-    s = BetSmall(500, 1)
+    s = BetN(10000, 1.5, 3)
+    cursor.execute('UPDATE principals SET {0} = 0'.format(s.get_name()))
     for i in range(begin_date, end_date):
         cursor.execute(
             ('SELECT bet_timestamp, bet_small, bet_big, bet_single, bet_double FROM rounds '
