@@ -17,7 +17,7 @@ try:
     conn = pymysql.connect(**db_opt)
     conn.autocommit(True)
     cursor = conn.cursor(pymysql.cursors.DictCursor)
-    s = BetN(10000, 1.5, 3)
+    s = BetN(10000, 1.3, 3)
     cursor.execute('UPDATE principals SET {0} = 0'.format(s.get_name()))
     for i in range(begin_date, end_date):
         cursor.execute(
